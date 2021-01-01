@@ -1,0 +1,13 @@
+{
+    "type": "record",
+    "name": "hits",
+    "fields": [
+        {
+            "name": "start_time",
+            "type": [
+                "null",
+                "long"
+            ]
+        }
+    ]
+}

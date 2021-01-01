@@ -1,0 +1,5 @@
+# IP-port pairs for Kafka brokers
+kafka_brokers: 127.0.0.1:9092
+
+# Kafka topic to which output will be written
+kafka_topic: hits_2
