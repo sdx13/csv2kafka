@@ -8,6 +8,20 @@
                 "null",
                 "long"
             ]
-        }
+        },
+        {
+            "name": "end_time",
+            "type": [
+                "null",
+                "long"
+            ]
+        },
+        {
+            "name": "mobile_phone",
+            "type": [
+                "null",
+                "long"
+            ]
+        },
     ]
 }

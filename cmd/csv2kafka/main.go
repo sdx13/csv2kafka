@@ -6,9 +6,11 @@ import (
 	"encoding/csv"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/linkedin/goavro/v2"
@@ -21,7 +23,9 @@ const (
         "type" : "record",
         "name" : "hits",
         "fields" : [
-			{"name": "start_time", "type" : ["null", "long"]}
+			{"name": "start_time", "type" : ["null", "long"]},
+			{"name": "end_time", "type" : ["null", "long"]},
+		    {"name": "mobile_phone", "type" : ["null", "long"]}
 		]
 	}`
 )
@@ -70,18 +74,24 @@ type FileReader struct {
 
 type hitsRecord struct {
 	startTime string
+	endTime   string
+	mobile    string
 }
 
 // XXX/PDP Perhaps it should return error as well
 func (r *hitsRecord) unmarshalFromCSV(record []string) {
-	if len(record) > 1 {
-		r.startTime = record[1]
+	if len(record) > 2 {
+		r.startTime = record[0]
+		r.endTime = record[1]
+		r.mobile = record[2]
 	}
 }
 
 func (r *hitsRecord) toStringMap() map[string]interface{} {
 	datum := map[string]interface{}{
-		"start_time": -1,
+		"start_time":   -1,
+		"end_time":     -1,
+		"mobile_phone": -1,
 	}
 	if r.startTime != "" {
 		v, err := r.getStartTime()
@@ -93,6 +103,27 @@ func (r *hitsRecord) toStringMap() map[string]interface{} {
 	} else {
 		datum["start_time"] = goavro.Union("null", nil)
 	}
+
+	if r.endTime != "" {
+		v, err := r.getEndTime()
+		if err != nil {
+			v = 0
+		}
+		datum["end_time"] = goavro.Union("long", v)
+	} else {
+		datum["end_time"] = goavro.Union("null", nil)
+	}
+
+	if r.mobile != "" {
+		v, err := strconv.ParseInt(r.mobile, 10, 64)
+		if err != nil {
+			v = 0
+		}
+		datum["mobile_phone"] = goavro.Union("long", v)
+	} else {
+		datum["mobile_phone"] = goavro.Union("null", nil)
+	}
+
 	return datum
 }
 
@@ -101,6 +132,16 @@ func (r *hitsRecord) getStartTime() (int64, error) {
 	t, err := time.Parse("01/02/06-15:04:05", r.startTime)
 	if err != nil {
 		log.Printf("Error parsing %v %v\n", r.startTime, err)
+		return 0, err
+	}
+
+	return t.Unix(), nil
+}
+
+func (r *hitsRecord) getEndTime() (int64, error) {
+	t, err := time.Parse("01/02/06-15:04:05", r.endTime)
+	if err != nil {
+		log.Printf("Error parsing %v\n", r.endTime, err)
 		return 0, err
 	}
 
@@ -225,6 +266,24 @@ func (c *AvroCodec) BinaryFromNative(native interface{}) ([]byte, error) {
 	return binary, nil
 }
 
+func (c *AvroCodec) TextualFromBinary(binary []byte) {
+	//Test code
+	// Convert binary Avro data back to native Go form
+	native, _, err := c.codec.NativeFromBinary(binary)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Convert native Go form to textual Avro data
+	textual, err := c.codec.TextualFromNative(nil, native)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(string(textual))
+
+}
+
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "c", "config.yml", "config file")
@@ -263,8 +322,14 @@ func main() {
 		data2.unmarshalFromCSV(record)
 		binary, err := codec.BinaryFromNative(data2.toStringMap())
 		if err != nil {
-			log.Fatalln("Could not convert to binary", err)
+			// XXX/PDP Audit this error message. It usually
+			// denotes receiving a record that does not have a
+			// mandatory field.
+			log.Printf("Could not convert to binary", err)
+			continue
 		}
+
+		//codec.TextualFromBinary(binary)
 		_, err = writer.Write(binary)
 		if err != nil {
 			log.Println("Error when writing to Kafka", err)
