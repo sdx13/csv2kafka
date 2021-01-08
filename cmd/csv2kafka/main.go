@@ -10,24 +10,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/linkedin/goavro/v2"
 	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 	"gopkg.in/yaml.v2"
-)
-
-const (
-	hitsSchema = `{
-        "type" : "record",
-        "name" : "hits",
-        "fields" : [
-			{"name": "start_time", "type" : ["null", "long"]},
-			{"name": "end_time", "type" : ["null", "long"]},
-		    {"name": "mobile_phone", "type" : ["null", "long"]}
-		]
-	}`
 )
 
 type config struct {
@@ -70,82 +56,6 @@ type RecordReader struct {
 // reads uncompressed files
 type FileReader struct {
 	s *bufio.Scanner
-}
-
-type hitsRecord struct {
-	startTime string
-	endTime   string
-	mobile    string
-}
-
-// XXX/PDP Perhaps it should return error as well
-func (r *hitsRecord) unmarshalFromCSV(record []string) {
-	if len(record) > 2 {
-		r.startTime = record[0]
-		r.endTime = record[1]
-		r.mobile = record[2]
-	}
-}
-
-func (r *hitsRecord) toStringMap() map[string]interface{} {
-	datum := map[string]interface{}{
-		"start_time":   -1,
-		"end_time":     -1,
-		"mobile_phone": -1,
-	}
-	if r.startTime != "" {
-		v, err := r.getStartTime()
-		if err != nil {
-			// XXX/PDP Log an error message
-			v = 0
-		}
-		datum["start_time"] = goavro.Union("long", v)
-	} else {
-		datum["start_time"] = goavro.Union("null", nil)
-	}
-
-	if r.endTime != "" {
-		v, err := r.getEndTime()
-		if err != nil {
-			v = 0
-		}
-		datum["end_time"] = goavro.Union("long", v)
-	} else {
-		datum["end_time"] = goavro.Union("null", nil)
-	}
-
-	if r.mobile != "" {
-		v, err := strconv.ParseInt(r.mobile, 10, 64)
-		if err != nil {
-			v = 0
-		}
-		datum["mobile_phone"] = goavro.Union("long", v)
-	} else {
-		datum["mobile_phone"] = goavro.Union("null", nil)
-	}
-
-	return datum
-}
-
-func (r *hitsRecord) getStartTime() (int64, error) {
-	//t, err := time.Parse("2006-01-02T15:04:05.999Z07:00", in)
-	t, err := time.Parse("01/02/06-15:04:05", r.startTime)
-	if err != nil {
-		log.Printf("Error parsing %v %v\n", r.startTime, err)
-		return 0, err
-	}
-
-	return t.Unix(), nil
-}
-
-func (r *hitsRecord) getEndTime() (int64, error) {
-	t, err := time.Parse("01/02/06-15:04:05", r.endTime)
-	if err != nil {
-		log.Printf("Error parsing %v\n", r.endTime, err)
-		return 0, err
-	}
-
-	return t.Unix(), nil
 }
 
 func NewFileReader(filePath string) (*FileReader, error) {
@@ -284,6 +194,10 @@ func (c *AvroCodec) TextualFromBinary(binary []byte) {
 
 }
 
+func recordFactory() Record {
+	return &hitsRecord{}
+}
+
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "c", "config.yml", "config file")
@@ -293,7 +207,8 @@ func main() {
 		log.Fatalf("config %v", err)
 	}
 
-	var schema = hitsSchema
+	var data2 = recordFactory()
+	var schema = data2.getSchema()
 	codec, err := NewAvroCodec(schema)
 	if err != nil {
 		log.Fatalln("Could not parse schema", err)
@@ -307,10 +222,6 @@ func main() {
 	//r, err := NewFileReader(fileName)
 	r, err := NewGzipReader(fileName)
 
-	// XXX/PDP Rigidity! The record and rest of the code are at different
-	// levels of abstraction making it difficult to process something of a
-	// different type.
-	data2 := &hitsRecord{}
 	if err != nil {
 		log.Fatal("Could not open input file")
 	}
