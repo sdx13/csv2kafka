@@ -236,7 +236,7 @@ func main() {
 			// XXX/PDP Audit this error message. It usually
 			// denotes receiving a record that does not have a
 			// mandatory field.
-			log.Printf("Could not convert to binary", err)
+			log.Println("Could not convert to binary", err)
 			continue
 		}
 
