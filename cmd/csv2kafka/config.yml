@@ -3,3 +3,14 @@ kafka_brokers: 127.0.0.1:9092
 
 # Kafka topic to which output will be written
 kafka_topic: hits_6
+
+# Time in seconds that the program will wait for files to be produced in the
+# input directory after not finding any. This waiting does not take place if
+# files are continuously found.
+wait_interval: 10
+
+# Directory to scan for input files
+input_dir: input
+
+# Directory to which files are moved after processing
+ready_dir: ready

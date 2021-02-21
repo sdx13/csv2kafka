@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"compress/gzip"
-	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +17,9 @@ import (
 type config struct {
 	KafkaBrokers string `yaml:"kafka_brokers,omitempty"`
 	KafkaTopic   string `yaml:"kafka_topic,omitempty"`
+	InputDir     string `yaml:"input_dir,omitempty"`
+	ReadyDir     string `yaml:"ready_dir,omitempty"`
+	WaitInterval int    `yaml:"wait_interval,omitempty"`
 }
 
 func loadConfig(path string) (*config, error) {
@@ -26,6 +27,9 @@ func loadConfig(path string) (*config, error) {
 
 	cfg.KafkaBrokers = "127.0.0.1:9092"
 	cfg.KafkaTopic = "hits"
+	cfg.InputDir = "input"
+	cfg.ReadyDir = "ready"
+	cfg.WaitInterval = 30
 
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -41,12 +45,13 @@ func loadConfig(path string) (*config, error) {
 // Abstract Entities
 //
 // We are dealing with at least two abstractions: data source and encoding.
-// Data sources are files on local/SFTP filesystem or a network port. Encoding
-// is about the data being in plaintext or gzip compressed.
+// Data sources are files on local/SFTP filesystem or a network port.
+// Encoding is about the data being in plaintext or gzip compressed.
 //
 
 // things like SFTP/local FS, network port (future)
-type RecordSource struct {
+type RecordSource interface {
+	Read() (string, error)
 }
 
 // something that lets read a regular or gzip compressed file
@@ -75,39 +80,6 @@ func (r *FileReader) Read() (string, error) {
 		return string(r.s.Text()), nil
 	}
 	return "", errors.New("failed to scan")
-}
-
-// reads gzip compressed files
-type GzipReader struct {
-	s *csv.Reader
-}
-
-func NewGzipReader(filePath string) (*GzipReader, error) {
-	r := &GzipReader{}
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	g, err := gzip.NewReader(f)
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-
-	s := csv.NewReader(g)
-	r.s = s
-	return r, err
-}
-
-func (r *GzipReader) Read() ([]string, error) {
-	return r.s.Read()
-	/*
-		if r.s.Scan() {
-			return string(r.s.Text()), nil
-		}
-		return "", errors.New("failed to scan")
-	*/
 }
 
 type KafkaWriter struct {
@@ -218,15 +190,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not create Kafka writer")
 	}
-	fileName := "hits.csv.gz"
-	//r, err := NewFileReader(fileName)
-	r, err := NewGzipReader(fileName)
-
+	recordReader, err := NewFilesystemReader(cfg)
 	if err != nil {
-		log.Fatal("Could not open input file")
+		log.Fatal("Could not open dir for reading")
 	}
 	for {
-		record, err := r.Read()
+		record, err := recordReader.Read()
 		if err != nil {
 			break
 		}
