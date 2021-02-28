@@ -10,7 +10,17 @@ kafka_topic: hits_6
 wait_interval: 10
 
 # Directory to scan for input files
-input_dir: input
+input_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/input
 
 # Directory to which files are moved after processing
-ready_dir: ready
+ready_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/ready
+
+# The SFTP related properties are used only if this is true.
+sftp_enabled: true
+
+sftp_ip: 127.0.0.1
+sftp_port: 22
+sftp_user: osboxes
+sftp_password: osboxes.org
+
+private_key_path: /home/osboxes/.ssh/id_rsa

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
-	"encoding/csv"
 	"fmt"
 	"log"
 	"os"
@@ -10,7 +8,7 @@ import (
 	"time"
 )
 
-type FilesystemReader struct {
+type LocalFilesystemReader struct {
 	inputDir     string
 	readyDir     string
 	waitInterval int
@@ -20,16 +18,7 @@ type FilesystemReader struct {
 	index  int
 }
 
-func NewFilesystemReader(cfg *config) (*FilesystemReader, error) {
-	return &FilesystemReader{
-		inputDir:     cfg.InputDir,
-		readyDir:     cfg.ReadyDir,
-		waitInterval: cfg.WaitInterval,
-		index:        -1,
-	}, nil
-}
-
-func (r *FilesystemReader) Read() ([]string, error) {
+func (r *LocalFilesystemReader) Read() ([]string, error) {
 	if len(r.files) == 0 {
 		i := 0
 		log.Println("Scanning for files in dir", r.inputDir)
@@ -58,7 +47,7 @@ func (r *FilesystemReader) Read() ([]string, error) {
 	}
 	record, err := r.reader.Read()
 	if record == nil {
-		err := r.Close()
+		err := r.close()
 		currentName := r.files[r.index].Name()
 		if err != nil {
 			fmt.Printf("Error closing file %v: %v", currentName, err)
@@ -66,17 +55,17 @@ func (r *FilesystemReader) Read() ([]string, error) {
 			log.Println("Closed file", currentName)
 		}
 		r.files = r.files[1:]
-		r.PostProcess(currentName)
+		r.postProcess(currentName)
 		return r.Read()
 	}
 	return record, err
 }
 
-func (r *FilesystemReader) Close() error {
+func (r *LocalFilesystemReader) close() error {
 	return r.reader.Close()
 }
 
-func (r *FilesystemReader) PostProcess(name string) {
+func (r *LocalFilesystemReader) postProcess(name string) {
 	from := filepath.Join(r.inputDir, name)
 	to := filepath.Join(r.readyDir, name)
 	err := os.Rename(from, to)
@@ -98,42 +87,4 @@ func readDir(path string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 	return filesInfo, nil
-}
-
-// There is no method to close the gzip reader.
-type GzipReader struct {
-	s    *csv.Reader
-	file *os.File
-}
-
-func NewGzipReader(filePath string) (*GzipReader, error) {
-	r := &GzipReader{}
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	g, err := gzip.NewReader(f)
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-
-	s := csv.NewReader(g)
-	r.s = s
-	r.file = f
-	return r, err
-}
-
-func (r *GzipReader) Read() ([]string, error) {
-	return r.s.Read()
-	/*
-		if r.s.Scan() {
-			return string(r.s.Text()), nil
-		}
-		return "", errors.New("failed to scan")
-	*/
-}
-func (r *GzipReader) Close() error {
-	return r.file.Close()
 }

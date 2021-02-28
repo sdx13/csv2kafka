@@ -15,11 +15,21 @@ import (
 )
 
 type config struct {
-	KafkaBrokers string `yaml:"kafka_brokers,omitempty"`
-	KafkaTopic   string `yaml:"kafka_topic,omitempty"`
-	InputDir     string `yaml:"input_dir,omitempty"`
-	ReadyDir     string `yaml:"ready_dir,omitempty"`
-	WaitInterval int    `yaml:"wait_interval,omitempty"`
+	KafkaBrokers   string `yaml:"kafka_brokers,omitempty"`
+	KafkaTopic     string `yaml:"kafka_topic,omitempty"`
+	InputDir       string `yaml:"input_dir,omitempty"`
+	ReadyDir       string `yaml:"ready_dir,omitempty"`
+	WaitInterval   int    `yaml:"wait_interval,omitempty"`
+	SftpEnabled    bool   `yaml:"sftp_enabled,omitempty"`
+	SftpIp         string `yaml:"sftp_ip,omitempty"`
+	SftpPort       string `yaml:"sftp_port,omitempty"`
+	SftpUser       string `yaml:"sftp_user,omitempty"`
+	SftpPassword   string `yaml:"sftp_password,omitempty"`
+	PrivateKeyPath string `yaml:"private_key_path,omitempty"`
+}
+
+type FilesystemReader interface {
+	Read() ([]string, error)
 }
 
 func loadConfig(path string) (*config, error) {
@@ -30,6 +40,12 @@ func loadConfig(path string) (*config, error) {
 	cfg.InputDir = "input"
 	cfg.ReadyDir = "ready"
 	cfg.WaitInterval = 30
+	cfg.SftpEnabled = false
+	cfg.SftpIp = "127.0.0.1"
+	cfg.SftpPort = "22"
+	cfg.SftpUser = "osboxes"
+	cfg.SftpPassword = "osboxes.org"
+	cfg.PrivateKeyPath = "/home/osboxes/.ssh/id_rsa"
 
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -61,6 +77,31 @@ type RecordReader struct {
 // reads uncompressed files
 type FileReader struct {
 	s *bufio.Scanner
+}
+
+// NewFilesystemReader is a factory method that instantiates the right reader
+// as per passed configuration.
+func NewFilesystemReader(cfg *config) (FilesystemReader, error) {
+	if cfg.SftpEnabled {
+		return &SftpFilesystemReader{
+			inputDir:       cfg.InputDir,
+			readyDir:       cfg.ReadyDir,
+			waitInterval:   cfg.WaitInterval,
+			ip:             cfg.SftpIp,
+			port:           cfg.SftpPort,
+			user:           cfg.SftpUser,
+			password:       cfg.SftpPassword,
+			privateKeyPath: cfg.PrivateKeyPath,
+			index:          -1,
+		}, nil
+	} else {
+		return &LocalFilesystemReader{
+			inputDir:     cfg.InputDir,
+			readyDir:     cfg.ReadyDir,
+			waitInterval: cfg.WaitInterval,
+			index:        -1,
+		}, nil
+	}
 }
 
 func NewFileReader(filePath string) (*FileReader, error) {
