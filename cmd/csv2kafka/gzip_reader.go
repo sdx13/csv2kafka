@@ -3,31 +3,24 @@ package main
 import (
 	"compress/gzip"
 	"encoding/csv"
-	"os"
+	"io"
 )
 
-// There is no method to close the gzip reader.
 type GzipReader struct {
-	s    *csv.Reader
-	file *os.File
+	s *csv.Reader
+	z *gzip.Reader
 }
 
-func NewGzipReader(filePath string) (*GzipReader, error) {
+func NewGzipReader(f io.Reader) (*GzipReader, error) {
 	r := &GzipReader{}
-	f, err := os.Open(filePath)
+	z, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, err
 	}
-
-	g, err := gzip.NewReader(f)
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-
-	s := csv.NewReader(g)
+	s := csv.NewReader(z)
+	s.FieldsPerRecord = -1
+	r.z = z
 	r.s = s
-	r.file = f
 	return r, err
 }
 
@@ -40,6 +33,7 @@ func (r *GzipReader) Read() ([]string, error) {
 		return "", errors.New("failed to scan")
 	*/
 }
+
 func (r *GzipReader) Close() error {
-	return r.file.Close()
+	return r.z.Close()
 }

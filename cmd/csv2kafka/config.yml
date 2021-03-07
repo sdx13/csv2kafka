@@ -7,16 +7,19 @@ kafka_topic: hits_6
 # Time in seconds that the program will wait for files to be produced in the
 # input directory after not finding any. This waiting does not take place if
 # files are continuously found.
-wait_interval: 10
+wait_interval: 30
 
 # Directory to scan for input files
-input_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/input
+input_dir: /root/pradeep/sftp/input
+#input_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/input
 
 # Directory to which files are moved after processing
-ready_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/ready
+ready_dir: /root/pradeep/sftp/ready
+#ready_dir: /home/osboxes/MyRepos/csv2kafka/cmd/csv2kafka/sftp/ready
 
 # The SFTP related properties are used only if this is true.
 sftp_enabled: true
+#sftp_enabled: false
 
 sftp_ip: 127.0.0.1
 sftp_port: 22

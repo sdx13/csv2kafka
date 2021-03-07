@@ -71,7 +71,7 @@ func (r *SftpFilesystemReader) Read() ([]string, error) {
 	if len(r.files) == 0 {
 		i := 0
 		log.Println("Scanning for files in dir", r.inputDir)
-		files, err := readDir(r.inputDir)
+		files, err := r.readDir(r.inputDir)
 		if err != nil {
 			log.Printf("Failed to read input dir: %v", err)
 			return nil, err
@@ -79,12 +79,19 @@ func (r *SftpFilesystemReader) Read() ([]string, error) {
 		for ; i < len(files); i++ {
 			name := filepath.Join(r.inputDir, files[i].Name())
 			log.Println("Reading file", name)
-			reader, err := NewGzipReader(name)
+			f, err := r.client.Open(name)
+			if err != nil {
+				log.Println("Failed to open file", err)
+				continue
+			}
+			reader, err := NewGzipReader(f)
 			if err == nil {
 				r.reader = reader
 				r.index = i
 				r.files = files
 				break
+			} else {
+				log.Printf("Could not open file for reading: %v", err)
 			}
 		}
 		if i == len(files) {
@@ -111,7 +118,9 @@ func (r *SftpFilesystemReader) Read() ([]string, error) {
 }
 
 func (r *SftpFilesystemReader) close() error {
-	return r.reader.Close()
+	// XXX/PDP audit this
+	//return r.reader.Close()
+	return nil
 }
 
 func (r *SftpFilesystemReader) postProcess(name string) {

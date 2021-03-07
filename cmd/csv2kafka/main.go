@@ -238,7 +238,8 @@ func main() {
 	for {
 		record, err := recordReader.Read()
 		if err != nil {
-			break
+			log.Println("Skipping record due to error", err)
+			continue
 		}
 		data2.unmarshalFromCSV(record)
 		binary, err := codec.BinaryFromNative(data2.toStringMap())

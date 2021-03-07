@@ -16,6 +16,7 @@ type LocalFilesystemReader struct {
 	files  []os.FileInfo
 	reader *GzipReader
 	index  int
+	f      *os.File
 }
 
 func (r *LocalFilesystemReader) Read() ([]string, error) {
@@ -30,12 +31,20 @@ func (r *LocalFilesystemReader) Read() ([]string, error) {
 		for ; i < len(files); i++ {
 			name := filepath.Join(r.inputDir, files[i].Name())
 			log.Println("Reading file", name)
-			reader, err := NewGzipReader(name)
+			f, err := os.Open(name)
+			if err != nil {
+				log.Println("Failed to open file", err)
+				continue
+			}
+			reader, err := NewGzipReader(f)
 			if err == nil {
 				r.reader = reader
 				r.index = i
+				r.f = f
 				r.files = files
 				break
+			} else {
+				log.Println("Failed to create gzip reader", err)
 			}
 		}
 		if i == len(files) {
@@ -48,6 +57,9 @@ func (r *LocalFilesystemReader) Read() ([]string, error) {
 	record, err := r.reader.Read()
 	if record == nil {
 		err := r.close()
+		if err != nil {
+			log.Println("Error while closing file", err)
+		}
 		currentName := r.files[r.index].Name()
 		if err != nil {
 			fmt.Printf("Error closing file %v: %v", currentName, err)
@@ -62,6 +74,10 @@ func (r *LocalFilesystemReader) Read() ([]string, error) {
 }
 
 func (r *LocalFilesystemReader) close() error {
+	err := r.f.Close()
+	if err != nil {
+		return err
+	}
 	return r.reader.Close()
 }
 
