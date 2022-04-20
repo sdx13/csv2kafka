@@ -118,7 +118,7 @@ func NewFileReader(filePath string) (*FileReader, error) {
 
 func (r *FileReader) Read() (string, error) {
 	if r.s.Scan() {
-		return string(r.s.Text()), nil
+		return r.s.Text(), nil
 	}
 	return "", errors.New("failed to scan")
 }
@@ -190,7 +190,7 @@ func (c *AvroCodec) BinaryFromNative(native interface{}) ([]byte, error) {
 }
 
 func (c *AvroCodec) TextualFromBinary(binary []byte) {
-	//Test code
+	// Test code
 	// Convert binary Avro data back to native Go form
 	native, _, err := c.codec.NativeFromBinary(binary)
 	if err != nil {
@@ -204,7 +204,6 @@ func (c *AvroCodec) TextualFromBinary(binary []byte) {
 	}
 
 	fmt.Println(string(textual))
-
 }
 
 func recordFactory() Record {
@@ -251,11 +250,10 @@ func main() {
 			continue
 		}
 
-		//codec.TextualFromBinary(binary)
+		// codec.TextualFromBinary(binary)
 		_, err = writer.Write(binary)
 		if err != nil {
 			log.Println("Error when writing to Kafka", err)
-
 		}
 	}
 	// Web: https://github.com/linkedin/goavro/issues/121

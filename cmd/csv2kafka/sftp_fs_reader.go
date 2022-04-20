@@ -119,7 +119,7 @@ func (r *SftpFilesystemReader) Read() ([]string, error) {
 
 func (r *SftpFilesystemReader) close() error {
 	// XXX/PDP audit this
-	//return r.reader.Close()
+	// return r.reader.Close()
 	return nil
 }
 

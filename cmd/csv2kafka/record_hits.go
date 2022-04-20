@@ -102,7 +102,6 @@ func getLong(s string) interface{} {
 }
 
 func getInt(s string) interface{} {
-
 	v, err := strconv.Atoi(s)
 	if err != nil {
 		log.Printf("Error parsing int %v: %v\n", s, err)
