@@ -84,7 +84,7 @@ func getIP(s string) interface{} {
 }
 
 func getTime(s string) interface{} {
-	t, err := time.Parse("01/02/06-15:04:05", s)
+	t, err := time.Parse("01/02/2006 15:04:05", s)
 	if err != nil {
 		log.Printf("Error parsing %v: %v\n", s, err)
 		return 0
