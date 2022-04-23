@@ -25,10 +25,11 @@ sudo yum install docker-compose
 
 ## TODO
 
-- Prevent non-fast-forward merges to master.
 - Improve linter config and resolve issues
 - Write program to list Kafka topics
 - Write program to consumer Avro messages from Kafka topic
+- Prevent non-fast-forward merges to master.
+- Explore code analysis via [sonarcloud](https://sonarcloud.io/)
 
 [Go Report Card]: https://goreportcard.com/badge/github.com/sdx13/csv2kafka
 [1]: https://goreportcard.com/report/github.com/sdx13/csv2kafka
