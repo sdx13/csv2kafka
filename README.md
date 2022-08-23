@@ -11,28 +11,28 @@ Tested to work on CentOS 7.
 
 ## Installation
 
-```sh
+```shell
 git clone git@github.com:sdx13/csv2kafka.git
 cd cmd/csv2kafka
 go install
 ```
 
-## Usage
+## Testing
 
-```sh
-sudo yum install docker-compose
+Finding security vulnerabilities:
+
+```shell
+trivy fs --ignore-unfixed .
+```
+Finding code smells:
+
+```shell
+golangci-lint run  -c <config_file>
 ```
 
-## TODO
+## Usage
 
-- Improve linter config and resolve issues
-- Write program to list Kafka topics
-- Write program to consumer Avro messages from Kafka topic
-- Prevent non-fast-forward merges to master.
-
-## Completed Items
-
-- Explore code analysis via [sonarcloud](https://sonarcloud.io/)
+TBD
 
 [Go Report Card]: https://goreportcard.com/badge/github.com/sdx13/csv2kafka
 [1]: https://goreportcard.com/report/github.com/sdx13/csv2kafka

@@ -1,0 +1,16 @@
+# TODO
+
+## Items
+
+- Automate validation of csv2kafka. Write a `run-tests.sh`.
+- Improve linter config and resolve issues
+- Resolve issues reported by Trivy
+- Write program to list Kafka topics
+- Write program to find Kafka topic offsets.
+- Prevent non-fast-forward merges to master.
+
+## Completed Items
+
+- Explore code analysis via [sonarcloud](https://sonarcloud.io/)
+- Write program to consumer Avro messages from Kafka topic
+
