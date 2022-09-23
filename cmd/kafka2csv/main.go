@@ -24,7 +24,6 @@ type config struct {
 	OutputFormat    string `yaml:"output_format,omitempty"`
 	AvroSchema      string `yaml:"avro_schema,omitempty"`
 	KafkaTopic      string `yaml:"kafka_topic,omitempty"`
-	OutputDir       string `yaml:"output_dir,omitempty"`
 	KafkaProperties string `yaml:"kafka_properties,omitempty"`
 }
 
@@ -37,7 +36,6 @@ func loadConfig(path string) (*config, error) {
 	cfg.OutputFormat = "CSV"
 	cfg.AvroSchema = "/home/osboxes/hits.avsc"
 	cfg.KafkaTopic = "test"
-	cfg.OutputDir = "/home/osboxes"
 	cfg.KafkaProperties = "/home/osboxes/consumer.properties"
 
 	content, err := ioutil.ReadFile(path)
@@ -167,10 +165,9 @@ func (w *CsvWriter) Write(r []string) error {
 	return nil
 }
 
-// We flatten the map to convert keys from
-// Name{ string : John Doe} to Name: John Doe
-// for preparing the data to be written in CSV files.
-func flatten(inputMap map[string]interface{}) []string {
+// Extract values from the texfual form. Nullable field values get encoded as:
+//   "name": {"type" : "value"}
+func valuesFromTextual(inputMap map[string]interface{}) []string {
 	var s []string
 	for _, value := range inputMap {
 		switch nestedMap := value.(type) {
@@ -197,17 +194,22 @@ func decodeFields(textual []byte) map[string]interface{} {
 }
 
 func consumeKafkaMessages(cfg *config, c *KafkaReader, codec *AvroCodec, w *CsvWriter) {
+	var numRead = 0
 	for {
 		msg, err := c.reader.ReadMessage(time.Duration(cfg.MaxPollTimeout) * time.Second)
 		if err != nil {
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
 			break
 		}
-
 		fieldsMap := decodeFields(codec.TextualFromBinary(msg.Value))
-		err = w.Write((flatten(fieldsMap)))
+		record := valuesFromTextual(fieldsMap)
+		err = w.Write(record)
 		if err != nil {
 			log.Printf("error writing record to csv: %v", err)
+			break
+		}
+		numRead++
+		if numRead >= cfg.Count {
 			break
 		}
 	}

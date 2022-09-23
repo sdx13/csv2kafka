@@ -19,8 +19,5 @@ avro_schema: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/schema/hits.avsc
 # Name of kafka topic to consume the messages from.
 kafka_topic: hits_1
 
-# Specify the path to write the .csv/.json files.
-output_dir: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/
-
 # Path to Kafka consumer.properties file.
 kafka_properties: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/config/consumer.properties
