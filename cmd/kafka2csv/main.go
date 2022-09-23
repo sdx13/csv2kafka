@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,9 +19,8 @@ import (
 )
 
 type config struct {
-	MaxPollTimeout int `yaml:"max_poll_timeout,omitempty"`
-	Count          int `yaml:"count,omitempty"`
-	// MaxMessagesPerFile int    `yaml:"max_messages_per_file,omitempty"`
+	MaxPollTimeout  int    `yaml:"max_poll_timeout,omitempty"`
+	Count           int    `yaml:"count,omitempty"`
 	OutputFormat    string `yaml:"output_format,omitempty"`
 	AvroSchema      string `yaml:"avro_schema,omitempty"`
 	KafkaTopic      string `yaml:"kafka_topic,omitempty"`
@@ -32,7 +32,6 @@ func loadConfig(path string) (*config, error) {
 
 	cfg.MaxPollTimeout = 20
 	cfg.Count = 0
-	// cfg.MaxMessagesPerFile = 10
 	cfg.OutputFormat = "CSV"
 	cfg.AvroSchema = "/home/osboxes/hits.avsc"
 	cfg.KafkaTopic = "test"
@@ -165,21 +164,36 @@ func (w *CsvWriter) Write(r []string) error {
 	return nil
 }
 
+func namesFromTextual(inputMap map[string]interface{}) []string {
+	var names = make([]string, 0, len(inputMap))
+	for k := range inputMap {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // Extract values from the texfual form. Nullable field values get encoded as:
 //   "name": {"type" : "value"}
-func valuesFromTextual(inputMap map[string]interface{}) []string {
-	var s []string
-	for _, value := range inputMap {
-		switch nestedMap := value.(type) {
+// Non-nullable fields get encoded as:
+//   "name": "value"
+func valuesFromTextual(names []string, inputMap map[string]interface{}) []string {
+	var values []string
+	if names == nil {
+		names = namesFromTextual(inputMap)
+	}
+	for i := range names {
+		v := inputMap[names[i]]
+		switch nestedMap := v.(type) {
 		case map[string]interface{}:
 			for _, val := range nestedMap {
-				s = append(s, fmt.Sprintf("%s", val))
+				values = append(values, fmt.Sprintf("%s", val))
 			}
 		default:
-			s = append(s, fmt.Sprintf("%s", value))
+			values = append(values, fmt.Sprintf("%s", v))
 		}
 	}
-	return s
+	return values
 }
 
 func decodeFields(textual []byte) map[string]interface{} {
@@ -195,6 +209,7 @@ func decodeFields(textual []byte) map[string]interface{} {
 
 func consumeKafkaMessages(cfg *config, c *KafkaReader, codec *AvroCodec, w *CsvWriter) {
 	var numRead = 0
+	var names []string
 	for {
 		msg, err := c.reader.ReadMessage(time.Duration(cfg.MaxPollTimeout) * time.Second)
 		if err != nil {
@@ -202,7 +217,7 @@ func consumeKafkaMessages(cfg *config, c *KafkaReader, codec *AvroCodec, w *CsvW
 			break
 		}
 		fieldsMap := decodeFields(codec.TextualFromBinary(msg.Value))
-		record := valuesFromTextual(fieldsMap)
+		record := valuesFromTextual(names, fieldsMap)
 		err = w.Write(record)
 		if err != nil {
 			log.Printf("error writing record to csv: %v", err)
