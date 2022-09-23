@@ -34,6 +34,14 @@ golangci-lint run  -c <config_file>
 
 TBD
 
+## Resources
+
+- [golangci-lint-action](https://github.com/golangci/golangci-lint-action) We
+  have used features like configuring a particular action version. This was
+  necessary to avoid warnings related to Go doc changes from Go version 1.18.
+- [setup-go](https://github.com/actions/setup-go)
+- [Workflow syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
+
 [Go Report Card]: https://goreportcard.com/badge/github.com/sdx13/csv2kafka
 [1]: https://goreportcard.com/report/github.com/sdx13/csv2kafka
 [License]: https://img.shields.io/badge/license-MIT-green
