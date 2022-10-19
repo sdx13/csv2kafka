@@ -7,7 +7,7 @@ max_poll_timeout: 20
 count: 0
 
 # Count of messages written per file
-max_messages_per_file: 100000
+# max_messages_per_file: 100000
 
 # Specify the output file format in which data must be written.
 # Possible values: JSON (for JSON format) and CSV (for csv format)
@@ -20,7 +20,7 @@ avro_schema: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/schema/hits.avsc
 kafka_topic: hits_1
 
 # Specify the path to write the .csv/.json files.
-output_dir: /home/osboxes/
+output_dir: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/
 
 # Path to Kafka consumer.properties file.
 kafka_properties: /home/osboxes/MyRepos/csv2kafka/cmd/kafka2csv/config/consumer.properties

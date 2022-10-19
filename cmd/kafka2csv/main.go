@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -16,14 +18,14 @@ import (
 )
 
 type config struct {
-	MaxPollTimeout     int    `yaml:"max_poll_timeout,omitempty"`
-	Count              int    `yaml:"count,omitempty"`
-	MaxMessagesPerFile int    `yaml:"max_messages_per_file,omitempty"`
-	OutputFormat       string `yaml:"output_format,omitempty"`
-	AvroSchema         string `yaml:"avro_schema,omitempty"`
-	KafkaTopic         string `yaml:"kafka_topic,omitempty"`
-	OutputDir          string `yaml:"output_dir,omitempty"`
-	KafkaProperties    string `yaml:"kafka_properties,omitempty"`
+	MaxPollTimeout int `yaml:"max_poll_timeout,omitempty"`
+	Count          int `yaml:"count,omitempty"`
+	// MaxMessagesPerFile int    `yaml:"max_messages_per_file,omitempty"`
+	OutputFormat    string `yaml:"output_format,omitempty"`
+	AvroSchema      string `yaml:"avro_schema,omitempty"`
+	KafkaTopic      string `yaml:"kafka_topic,omitempty"`
+	OutputDir       string `yaml:"output_dir,omitempty"`
+	KafkaProperties string `yaml:"kafka_properties,omitempty"`
 }
 
 func loadConfig(path string) (*config, error) {
@@ -31,7 +33,7 @@ func loadConfig(path string) (*config, error) {
 
 	cfg.MaxPollTimeout = 20
 	cfg.Count = 0
-	cfg.MaxMessagesPerFile = 10
+	// cfg.MaxMessagesPerFile = 10
 	cfg.OutputFormat = "CSV"
 	cfg.AvroSchema = "/home/osboxes/hits.avsc"
 	cfg.KafkaTopic = "test"
@@ -81,7 +83,6 @@ func (c *AvroCodec) TextualFromBinary(binary []byte) []byte {
 	}
 
 	return (textual)
-	//fmt.Println(string(textual))
 }
 
 // Load kafka consumer properties in a kafka config map
@@ -131,7 +132,10 @@ func NewKafkaReader(cfg *config) (*KafkaReader, error) {
 		return nil, err
 	}
 
-	c.SubscribeTopics([]string{cfg.KafkaTopic}, nil)
+	err = c.SubscribeTopics([]string{cfg.KafkaTopic}, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	k := KafkaReader{
 		topic:  cfg.KafkaTopic,
@@ -140,14 +144,72 @@ func NewKafkaReader(cfg *config) (*KafkaReader, error) {
 	return &k, nil
 }
 
-func consumeKafkaMessages(cfg *config, c *KafkaReader, codec *AvroCodec) {
+type CsvWriter struct {
+	writer *csv.Writer
+}
+
+func NewCsvWriter() *CsvWriter {
+	w := csv.NewWriter(os.Stdout)
+	return &CsvWriter{writer: w}
+}
+
+func (w *CsvWriter) Write(r []string) error {
+	if err := w.writer.Write(r); err != nil {
+		return err
+	}
+
+	// Write any buffered data to the underlying writer (standard output).
+	w.writer.Flush()
+
+	if err := w.writer.Error(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// We flatten the map to convert keys from
+// Name{ string : John Doe} to Name: John Doe
+// for preparing the data to be written in CSV files.
+func flatten(inputMap map[string]interface{}) []string {
+	var s []string
+	for _, value := range inputMap {
+		switch nestedMap := value.(type) {
+		case map[string]interface{}:
+			for _, val := range nestedMap {
+				s = append(s, fmt.Sprintf("%s", val))
+			}
+		default:
+			s = append(s, fmt.Sprintf("%s", value))
+		}
+	}
+	return s
+}
+
+func decodeFields(textual []byte) map[string]interface{} {
+	var fieldsMap map[string]interface{}
+	decoder := json.NewDecoder(strings.NewReader(string(textual)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&fieldsMap); err != nil {
+		log.Fatal(err)
+	}
+
+	return fieldsMap
+}
+
+func consumeKafkaMessages(cfg *config, c *KafkaReader, codec *AvroCodec, w *CsvWriter) {
 	for {
 		msg, err := c.reader.ReadMessage(time.Duration(cfg.MaxPollTimeout) * time.Second)
 		if err != nil {
 			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
 			break
 		}
-		fmt.Println(string(codec.TextualFromBinary(msg.Value)))
+
+		fieldsMap := decodeFields(codec.TextualFromBinary(msg.Value))
+		err = w.Write((flatten(fieldsMap)))
+		if err != nil {
+			log.Printf("error writing record to csv: %v", err)
+			break
+		}
 	}
 	c.reader.Close()
 }
@@ -170,8 +232,10 @@ func main() {
 
 	consumer, err := NewKafkaReader(cfg)
 	if err != nil {
-		log.Fatal("Could not create Kafka consumer")
+		log.Fatalln("Could not create Kafka consumer")
 	}
 
-	consumeKafkaMessages(cfg, consumer, codec)
+	writer := NewCsvWriter()
+
+	consumeKafkaMessages(cfg, consumer, codec, writer)
 }
